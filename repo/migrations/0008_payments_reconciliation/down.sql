@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS reconciliation_rows;
+DROP TABLE IF EXISTS reconciliation_imports;
+DROP TABLE IF EXISTS payment_adjustments;
+DROP TABLE IF EXISTS refunds;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS payment_intents;
+DROP TYPE IF EXISTS refund_state;
+DROP TYPE IF EXISTS payment_state;
+DROP TYPE IF EXISTS intent_state;

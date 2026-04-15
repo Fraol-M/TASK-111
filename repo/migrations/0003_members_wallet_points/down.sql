@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS blacklist_events;
+DROP TABLE IF EXISTS member_preferences;
+DROP TABLE IF EXISTS wallet_ledger;
+DROP TABLE IF EXISTS points_ledger;
+DROP TABLE IF EXISTS member_tier_history;
+DROP TABLE IF EXISTS members;
+DROP TYPE IF EXISTS wallet_txn_type;
+DROP TYPE IF EXISTS points_txn_type;
+DROP TYPE IF EXISTS blacklist_reason;
+DROP TYPE IF EXISTS member_tier;

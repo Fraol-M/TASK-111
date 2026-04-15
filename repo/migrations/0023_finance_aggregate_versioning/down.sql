@@ -1,0 +1,2 @@
+ALTER TABLE refunds DROP COLUMN IF EXISTS version;
+ALTER TABLE payment_intents DROP COLUMN IF EXISTS version;

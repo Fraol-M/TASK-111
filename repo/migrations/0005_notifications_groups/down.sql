@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS dnd_queue;
+DROP TABLE IF EXISTS group_message_receipts;
+DROP TABLE IF EXISTS group_messages;
+DROP TABLE IF EXISTS group_members;
+DROP TABLE IF EXISTS group_threads;
+DROP TABLE IF EXISTS notification_attempts;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS notification_templates;
+DROP TYPE IF EXISTS template_trigger;
+DROP TYPE IF EXISTS delivery_state;
+DROP TYPE IF EXISTS notification_channel;

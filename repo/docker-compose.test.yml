@@ -1,0 +1,58 @@
+services:
+  db_test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: venue
+      POSTGRES_PASSWORD: venue
+      POSTGRES_DB: venue_ops_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U venue -d venue_ops_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  test_runner:
+    build:
+      context: .
+      target: builder
+    # Hardcoded test environment — no env_file dependency (.env.test is gitignored).
+    # These vars are set in the container BEFORE cargo test starts, so dotenvy::dotenv()
+    # loading /app/.env cannot override DATABASE_URL to the production "db" host.
+    environment:
+      DATABASE_URL: "postgres://venue:venue@db_test:5432/venue_ops_test"
+      TEST_DATABASE_URL: "postgres://venue:venue@db_test:5432/venue_ops_test"
+      APP__SERVER__HOST: "0.0.0.0"
+      APP__SERVER__PORT: "8081"
+      APP__SERVER__WORKERS: "1"
+      APP__ENCRYPTION__KEY_HEX: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      APP__JWT__SECRET: "test-secret-do-not-use-in-production"
+      APP__JWT__EXPIRY_SECONDS: "3600"
+      APP__JOBS__HOLD_EXPIRY_INTERVAL_SECS: "60"
+      APP__JOBS__PAYMENT_TIMEOUT_INTERVAL_SECS: "60"
+      APP__JOBS__REMINDER_INTERVAL_SECS: "3600"
+      APP__JOBS__DND_RESOLVE_INTERVAL_SECS: "300"
+      APP__JOBS__ZERO_QTY_INTERVAL_SECS: "600"
+      APP__JOBS__TIER_RECALC_HOUR: "2"
+      APP__JOBS__BACKUP_HOUR: "3"
+      APP__BOOKING__HOLD_TIMEOUT_MINUTES: "15"
+      APP__PAYMENT__INTENT_TIMEOUT_MINUTES: "30"
+      APP__DND__START_HOUR: "21"
+      APP__DND__END_HOUR: "7"
+      APP__BACKUP__DIR: "/tmp/test-backups"
+      APP__STORAGE__RECONCILIATION_DIR: "/tmp/test-reconciliation"
+      APP__STORAGE__ATTACHMENTS_DIR: "/tmp/test-attachments"
+      APP__STORAGE__MAX_UPLOAD_BYTES: "10485760"
+      RUST_LOG: "error"
+    command: cargo test --all -- --test-threads=1
+    depends_on:
+      db_test:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - cargo_cache:/usr/local/cargo/registry
+      - target_cache:/app/target
+    working_dir: /app
+
+volumes:
+  cargo_cache:
+  target_cache:

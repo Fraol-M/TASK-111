@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS restock_alerts;
+DROP TABLE IF EXISTS inventory_ledger;
+DROP TABLE IF EXISTS booking_status_history;
+DROP TABLE IF EXISTS booking_items;
+DROP TABLE IF EXISTS inventory_holds;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS inventory_items;
+DROP TABLE IF EXISTS delivery_zones;
+DROP TABLE IF EXISTS pickup_points;
+DROP TYPE IF EXISTS publish_status;
+DROP TYPE IF EXISTS booking_state;

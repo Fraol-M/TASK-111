@@ -1,0 +1,21 @@
+# Build artifacts
+/target/
+
+# Local environment files
+.env
+.env.test
+
+# Runtime/storage artifacts
+/storage/backups/*
+/storage/attachments/*
+/storage/reconciliation_imports/*
+!/storage/backups/.gitkeep
+!/storage/attachments/.gitkeep
+!/storage/reconciliation_imports/.gitkeep
+
+# Local assistant/editor folders
+/.claude/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
