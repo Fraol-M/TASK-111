@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::BookingState"]
 pub enum BookingState {
     #[db_rename = "draft"]

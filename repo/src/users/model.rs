@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::UserRole"]
 pub enum UserRole {
     #[db_rename = "administrator"]
@@ -55,6 +56,7 @@ impl UserRole {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::UserStatus"]
 pub enum UserStatus {
     #[db_rename = "active"]

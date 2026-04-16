@@ -6,6 +6,7 @@ use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::AssetStatus"]
 pub enum AssetStatus {
     #[db_rename = "active"]
@@ -19,6 +20,7 @@ pub enum AssetStatus {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::DepreciationMethod"]
 pub enum DepreciationMethod {
     #[db_rename = "straight_line"]

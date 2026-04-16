@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::MemberTier"]
 pub enum MemberTier {
     #[db_rename = "silver"]
@@ -37,6 +38,7 @@ impl MemberTier {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::BlacklistReason"]
 pub enum BlacklistReason {
     #[db_rename = "fraud"]
@@ -50,6 +52,7 @@ pub enum BlacklistReason {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::PointsTxnType"]
 pub enum PointsTxnType {
     #[db_rename = "earn"]
@@ -63,6 +66,7 @@ pub enum PointsTxnType {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::WalletTxnType"]
 pub enum WalletTxnType {
     #[db_rename = "top_up"]

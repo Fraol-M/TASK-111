@@ -1,5 +1,5 @@
-# ---- Stage 1: Builder ----
-FROM rust:1.88-slim AS builder
+# ---- Stage 1: Base (OS dependencies) ----
+FROM rust:1.88-slim AS base
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# ---- Stage 2: Builder ----
+FROM base AS builder
 
 # Cache dependencies separately from source
 COPY Cargo.toml Cargo.lock ./

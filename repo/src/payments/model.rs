@@ -18,6 +18,7 @@ pub enum IntentState {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::PaymentState"]
 pub enum PaymentState {
     #[db_rename = "pending"]
@@ -33,6 +34,7 @@ pub enum PaymentState {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::RefundState"]
 pub enum RefundState {
     #[db_rename = "pending"]

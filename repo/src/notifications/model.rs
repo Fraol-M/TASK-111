@@ -13,6 +13,7 @@ use uuid::Uuid;
 /// which triggers the service to create an automatic `InApp` fallback
 /// notification so the user always receives the message.
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::NotificationChannel"]
 pub enum NotificationChannel {
     #[db_rename = "in_app"]
@@ -38,6 +39,7 @@ impl NotificationChannel {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::DeliveryState"]
 pub enum DeliveryState {
     #[db_rename = "pending"]
@@ -53,6 +55,7 @@ pub enum DeliveryState {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::TemplateTrigger"]
 pub enum TemplateTrigger {
     #[db_rename = "booking_confirmed"]

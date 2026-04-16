@@ -49,7 +49,7 @@ pub fn run_test_migrations(pool: &DbPool) {
         .execute(&mut conn)
         .expect("Failed to acquire migration advisory lock");
 
-    let migration_result = conn.run_pending_migrations(MIGRATIONS);
+    let migration_result = conn.run_pending_migrations(MIGRATIONS).map(|_| ()).map_err(|e| e.to_string());
 
     diesel::sql_query("SELECT pg_advisory_unlock(7111001001)")
         .execute(&mut conn)
@@ -81,11 +81,34 @@ pub fn seed_user(
     username: &str,
     role: venue_booking::users::model::UserRole,
 ) -> Uuid {
-    use venue_booking::schema::users;
+    use venue_booking::schema::{users, password_history, auth_sessions};
+    use diesel::prelude::*;
+
+    if let Ok(existing_id) = users::table
+        .filter(users::username.eq(username))
+        .select(users::id)
+        .first::<Uuid>(conn)
+    {
+        let hash = venue_booking::auth::service::hash_password(DEFAULT_PASSWORD).unwrap();
+        diesel::update(users::table.filter(users::id.eq(existing_id)))
+            .set((
+                users::password_hash.eq(&hash),
+                users::role.eq(role),
+                users::status.eq(venue_booking::users::model::UserStatus::Active),
+            ))
+            .execute(conn)
+            .unwrap_or_else(|e| panic!("update user '{}': {}", username, e));
+            
+        // Clear history and sessions to provide a clean state for tests
+        diesel::delete(password_history::table.filter(password_history::user_id.eq(existing_id)))
+            .execute(conn).ok();
+        diesel::delete(auth_sessions::table.filter(auth_sessions::user_id.eq(existing_id)))
+            .execute(conn).ok();
+            
+        return existing_id;
+    }
+
     let id = Uuid::new_v4();
-    diesel::delete(users::table.filter(users::username.eq(username)))
-        .execute(conn)
-        .ok();
     let hash = venue_booking::auth::service::hash_password(DEFAULT_PASSWORD).unwrap();
     diesel::insert_into(users::table)
         .values((
@@ -98,7 +121,7 @@ pub fn seed_user(
             users::updated_at.eq(Utc::now()),
         ))
         .execute(conn)
-        .expect("seed user");
+        .unwrap_or_else(|e| panic!("seed user '{}': {}", username, e));
     id
 }
 
@@ -107,9 +130,23 @@ pub fn seed_user(
 /// the admin `update_user` provisioning path.
 pub fn seed_member(conn: &mut PgConnection, user_id: Uuid) {
     use venue_booking::schema::members;
-    diesel::delete(members::table.filter(members::user_id.eq(user_id)))
+    use diesel::prelude::*;
+
+    if let Ok(1) = diesel::update(members::table.filter(members::user_id.eq(user_id)))
+        .set((
+            members::tier.eq(venue_booking::members::model::MemberTier::Silver),
+            members::points_balance.eq(0i32),
+            members::wallet_balance.eq(""),
+            members::blacklist_flag.eq(false),
+            members::rolling_12m_spend.eq(0i64),
+            members::version.eq(0i32),
+            members::updated_at.eq(Utc::now()),
+        ))
         .execute(conn)
-        .ok();
+    {
+        return;
+    }
+
     diesel::insert_into(members::table)
         .values((
             members::user_id.eq(user_id),
@@ -129,9 +166,20 @@ pub fn seed_member(conn: &mut PgConnection, user_id: Uuid) {
 /// resolution works without a 404.
 pub fn seed_member_preferences(conn: &mut PgConnection, user_id: Uuid) {
     use venue_booking::schema::member_preferences;
-    diesel::delete(member_preferences::table.filter(member_preferences::user_id.eq(user_id)))
+    use diesel::prelude::*;
+
+    if let Ok(1) = diesel::update(member_preferences::table.filter(member_preferences::user_id.eq(user_id)))
+        .set((
+            member_preferences::notification_opt_out.eq(serde_json::Value::Array(vec![])),
+            member_preferences::preferred_channel.eq("in_app"),
+            member_preferences::timezone_offset_minutes.eq(0),
+            member_preferences::updated_at.eq(Utc::now()),
+        ))
         .execute(conn)
-        .ok();
+    {
+        return;
+    }
+
     diesel::insert_into(member_preferences::table)
         .values((
             member_preferences::user_id.eq(user_id),

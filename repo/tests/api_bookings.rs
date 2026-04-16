@@ -59,8 +59,9 @@ macro_rules! create_booking_via_app {
 /// (member_username, ops_username, item_id).
 fn seed_for_booking(pool: &common::DbPool, suffix: &str) -> (String, String, Uuid) {
     let mut conn = pool.get().unwrap();
-    let ops_user = format!("abook_ops_{}", suffix);
-    let mem_user = format!("abook_mem_{}", suffix);
+    let unique_id = Uuid::new_v4().to_string().replace("-", "")[..8].to_string();
+    let ops_user = format!("abook_ops_{}_{}", suffix, unique_id);
+    let mem_user = format!("abook_mem_{}_{}", suffix, unique_id);
     common::seed_user(
         &mut conn,
         &ops_user,

@@ -6,6 +6,7 @@ use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::EvaluationState"]
 pub enum EvaluationState {
     #[db_rename = "draft"]
@@ -21,6 +22,7 @@ pub enum EvaluationState {
 }
 
 #[derive(DbEnum, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[ExistingTypePath = "crate::schema::sql_types::AssignmentState"]
 pub enum AssignmentState {
     #[db_rename = "pending"]

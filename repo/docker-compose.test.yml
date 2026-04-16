@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: venue
       POSTGRES_PASSWORD: venue
       POSTGRES_DB: venue_ops_test
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata_test:/var/lib/postgresql/data
     healthcheck:
@@ -16,7 +18,7 @@ services:
   test_runner:
     build:
       context: .
-      target: builder
+      target: base
     # Hardcoded test environment — no env_file dependency (.env.test is gitignored).
     # These vars are set in the container BEFORE cargo test starts, so dotenvy::dotenv()
     # loading /app/.env cannot override DATABASE_URL to the production "db" host.
