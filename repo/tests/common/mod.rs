@@ -42,7 +42,20 @@ pub fn run_test_migrations(pool: &DbPool) {
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
     let mut conn = pool.get().expect("Failed to get test DB connection");
-    conn.run_pending_migrations(MIGRATIONS).expect("Failed to run test migrations");
+    // Integration tests can run in parallel across threads/processes. Guard
+    // migration execution with a DB-wide advisory lock so only one runner
+    // applies schema changes at a time.
+    diesel::sql_query("SELECT pg_advisory_lock(7111001001)")
+        .execute(&mut conn)
+        .expect("Failed to acquire migration advisory lock");
+
+    let migration_result = conn.run_pending_migrations(MIGRATIONS);
+
+    diesel::sql_query("SELECT pg_advisory_unlock(7111001001)")
+        .execute(&mut conn)
+        .expect("Failed to release migration advisory lock");
+
+    migration_result.expect("Failed to run test migrations");
 }
 
 /// Build `(pool, cfg, enc)` for an integration test. Runs migrations and
