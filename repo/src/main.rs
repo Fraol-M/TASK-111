@@ -37,8 +37,11 @@ async fn main() -> std::io::Result<()> {
     // Load config from environment
     let cfg = config::AppConfig::load().expect("Failed to load application configuration");
 
-    // Build encryption key
-    let enc_key = common::crypto::EncryptionKey::from_hex(&cfg.encryption.key_hex)
+    // Read encryption key directly from env to avoid config crate's
+    // try_parsing(true) interpreting all-digit hex strings as integers.
+    let key_hex = std::env::var("APP__ENCRYPTION__KEY_HEX")
+        .unwrap_or_else(|_| cfg.encryption.key_hex.clone());
+    let enc_key = common::crypto::EncryptionKey::from_hex(&key_hex)
         .expect("Invalid ENCRYPTION_KEY_HEX — must be 64 hex characters");
 
     // Build DB pool
