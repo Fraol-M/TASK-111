@@ -10,9 +10,16 @@ set -euo pipefail
 # Usage:
 #   ./run_tests.sh                         # run all tests
 #   ./run_tests.sh test_login_success      # run a specific test
+#
+# Optional speed knobs:
+#   TEST_THREADS=4 ./run_tests.sh          # parallel test execution
+#   KEEP_VOLUMES=1 ./run_tests.sh          # keep DB/build caches (default)
+#   KEEP_VOLUMES=0 ./run_tests.sh          # cold reset (old behavior)
 # ---------------------------------------------------------------------------
 
 SPECIFIC_TEST="${1:-}"
+TEST_THREADS="${TEST_THREADS:-4}"
+KEEP_VOLUMES="${KEEP_VOLUMES:-1}"
 
 # Determine which env file to use
 if [ -f ".env.test" ]; then
@@ -58,7 +65,11 @@ COMPOSE_OPTS="-f docker-compose.test.yml --env-file $ENV_FILE"
 
 cleanup() {
   echo "[run_tests] Tearing down test containers..."
-  docker compose $COMPOSE_OPTS down -v --remove-orphans 2>/dev/null || true
+  if [ "$KEEP_VOLUMES" = "0" ]; then
+    docker compose $COMPOSE_OPTS down -v --remove-orphans 2>/dev/null || true
+  else
+    docker compose $COMPOSE_OPTS down --remove-orphans 2>/dev/null || true
+  fi
   if [ "${CLEANUP_ENV:-0}" = "1" ]; then
     rm -f "$ENV_FILE"
   fi
@@ -82,9 +93,9 @@ echo "[run_tests] Database is ready."
 
 # Build test command
 if [ -n "$SPECIFIC_TEST" ]; then
-  TEST_CMD="cargo test $SPECIFIC_TEST -- --nocapture --test-threads=1"
+  TEST_CMD="cargo test $SPECIFIC_TEST -- --nocapture --test-threads=$TEST_THREADS"
 else
-  TEST_CMD="cargo test --all -- --test-threads=1"
+  TEST_CMD="cargo test --all -- --test-threads=$TEST_THREADS"
 fi
 
 echo "[run_tests] Running: $TEST_CMD"

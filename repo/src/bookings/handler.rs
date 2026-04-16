@@ -340,12 +340,13 @@ pub async fn complete_booking(
     pool: web::Data<DbPool>,
     cfg: web::Data<AppConfig>,
     path: web::Path<Uuid>,
-    body: web::Json<CompleteBookingRequest>,
+    body: Option<web::Json<CompleteBookingRequest>>,
 ) -> Result<HttpResponse, AppError> {
     let booking_id = path.into_inner();
     let actor_id = _auth.0.sub;
+    let reason = body.as_ref().and_then(|b| b.reason.clone());
 
-    let booking = service::complete_booking(&pool, &cfg, booking_id, body.reason.clone(), actor_id).await?;
+    let booking = service::complete_booking(&pool, &cfg, booking_id, reason, actor_id).await?;
     Ok(HttpResponse::Ok().json(BookingResponse::from(booking)))
 }
 

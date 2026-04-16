@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: venue
       POSTGRES_PASSWORD: venue
       POSTGRES_DB: venue_ops_test
+    volumes:
+      - pgdata_test:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U venue -d venue_ops_test"]
       interval: 5s
@@ -50,9 +52,12 @@ services:
     volumes:
       - .:/app
       - cargo_cache:/usr/local/cargo/registry
+      - cargo_git_cache:/usr/local/cargo/git
       - target_cache:/app/target
     working_dir: /app
 
 volumes:
+  pgdata_test:
   cargo_cache:
+  cargo_git_cache:
   target_cache:
