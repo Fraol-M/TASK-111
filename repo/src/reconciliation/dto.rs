@@ -67,5 +67,7 @@ impl From<ReconciliationRow> for ReconciliationRowResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type ImportListResponse = Page<ImportResponse>;
+#[allow(dead_code)]
 pub type RowListResponse = Page<ReconciliationRowResponse>;

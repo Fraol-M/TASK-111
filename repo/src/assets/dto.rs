@@ -145,4 +145,5 @@ impl From<AssetAttachment> for AssetAttachmentResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type AssetListResponse = Page<AssetResponse>;

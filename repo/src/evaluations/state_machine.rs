@@ -26,6 +26,7 @@ impl EvaluationStateMachine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_terminal(state: &EvaluationState) -> bool {
         matches!(state, EvaluationState::Completed | EvaluationState::Cancelled)
     }
@@ -56,6 +57,7 @@ impl AssignmentStateMachine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_terminal(state: &AssignmentState) -> bool {
         matches!(state, AssignmentState::Approved | AssignmentState::Rejected)
     }

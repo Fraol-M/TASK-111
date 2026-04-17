@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::common::{db::DbPool, errors::AppError};
 use crate::users::{
     dto::{ChangePasswordRequest, ChangeStatusRequest, CreateUserRequest, UpdateUserRequest, UserResponse},
-    model::{NewUser, User, UserRole, UserStatus},
+    model::{NewUser, UserRole, UserStatus},
     repository,
 };
 

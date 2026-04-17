@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 #[derive(Debug, Queryable, Selectable, Clone)]
 #[diesel(table_name = crate::schema::auth_sessions)]
 pub struct AuthSession {

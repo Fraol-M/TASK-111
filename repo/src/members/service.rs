@@ -11,7 +11,6 @@ use crate::members::{
 use crate::schema::blacklist_events;
 use diesel::prelude::*;
 
-pub const POINTS_PER_DOLLAR_CENTS: i32 = 100; // 1 pt per $1 = 1 pt per 100c
 pub const REDEMPTION_INCREMENT: i32 = 100;
 
 pub async fn get_member_info(
@@ -407,7 +406,7 @@ pub async fn recalculate_tier(pool: &DbPool, user_id: Uuid) -> Result<MemberTier
         let cutoff = Utc::now() - Duration::days(365);
 
         let pay_row: AmountSum = diesel::sql_query(
-            "SELECT COALESCE(SUM(amount_cents), 0) AS total \
+            "SELECT COALESCE(SUM(amount_cents), 0)::BIGINT AS total \
              FROM payments WHERE member_id = $1 AND state = 'completed' AND created_at > $2"
         )
         .bind::<diesel::sql_types::Uuid, _>(user_id)
@@ -416,7 +415,7 @@ pub async fn recalculate_tier(pool: &DbPool, user_id: Uuid) -> Result<MemberTier
         .map_err(AppError::from)?;
 
         let ref_row: AmountSum = diesel::sql_query(
-            "SELECT COALESCE(SUM(r.amount_cents), 0) AS total \
+            "SELECT COALESCE(SUM(r.amount_cents), 0)::BIGINT AS total \
              FROM refunds r JOIN payments p ON r.payment_id = p.id \
              WHERE p.member_id = $1 AND r.state = 'approved' AND r.created_at > $2"
         )

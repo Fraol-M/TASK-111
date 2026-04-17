@@ -48,7 +48,7 @@ pub fn find_evaluation(conn: &mut DbConn, eval_id: Uuid) -> Result<Evaluation, A
 pub fn transition_evaluation_state(
     conn: &mut DbConn,
     eval_id: Uuid,
-    from_state: EvaluationState,
+    _from_state: EvaluationState,
     to_state: EvaluationState,
     expected_version: i32,
 ) -> Result<Evaluation, AppError> {

@@ -164,5 +164,7 @@ impl From<EvaluationAction> for EvaluationActionResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type CycleListResponse = Page<EvaluationCycleResponse>;
+#[allow(dead_code)]
 pub type EvaluationListResponse = Page<EvaluationResponse>;

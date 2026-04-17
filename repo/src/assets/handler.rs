@@ -167,7 +167,7 @@ pub async fn upload_attachment(
     auth: AssetManagerUser,
     pool: web::Data<DbPool>,
     cfg: web::Data<AppConfig>,
-    enc: web::Data<EncryptionKey>,
+    _enc: web::Data<EncryptionKey>,
     path: web::Path<Uuid>,
     mut payload: actix_multipart::Multipart,
 ) -> Result<HttpResponse, AppError> {

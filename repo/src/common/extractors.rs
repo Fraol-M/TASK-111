@@ -69,6 +69,7 @@ pub struct EvaluatorUser(pub Claims);
 /// Reviewer authority (admin or reviewer). Distinct from `EvaluatorUser`: a
 /// reviewer can approve/reject completed evaluations but does not perform
 /// the assessment work. `AdminUser` is accepted as a superset.
+#[allow(dead_code)]
 pub struct ReviewerUser(pub Claims);
 
 macro_rules! role_extractor {
@@ -103,6 +104,7 @@ role_extractor!(EvaluatorUser, "administrator", "evaluator");
 role_extractor!(ReviewerUser, "administrator", "reviewer");
 
 /// Helper: require the authenticated user to be a specific user_id OR one of the allowed roles.
+#[allow(dead_code)]
 pub fn require_self_or_roles(
     claims: &Claims,
     target_id: Uuid,

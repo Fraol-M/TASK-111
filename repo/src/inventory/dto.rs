@@ -37,6 +37,7 @@ pub struct UpdateInventoryItemRequest {
 pub struct RestockRequest {
     #[validate(range(min = 1, message = "quantity must be positive"))]
     pub quantity: i32,
+    #[allow(dead_code)]
     pub note: Option<String>,
 }
 

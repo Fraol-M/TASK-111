@@ -33,7 +33,39 @@ async fn test_notifications_inbox_and_templates_crud_and_preview() {
     ))
     .await;
     {
+        use diesel::RunQueryDsl;
         let mut conn = pool.get().unwrap();
+        // This test reuses the shared test database volume across runs. The
+        // template table enforces UNIQUE(trigger_type, channel), so a previous
+        // interrupted run can leave behind the exact custom/in_app template
+        // shape this test creates and turn the POST into a 409 on rerun.
+        diesel::sql_query(
+            "DELETE FROM notification_attempts
+             WHERE notification_id IN (
+                 SELECT id FROM notifications
+                 WHERE template_id IN (
+                     SELECT id FROM notification_templates
+                     WHERE trigger_type = 'custom' AND channel = 'in_app'
+                 )
+             )",
+        )
+        .execute(&mut conn)
+        .unwrap();
+        diesel::sql_query(
+            "DELETE FROM notifications
+             WHERE template_id IN (
+                 SELECT id FROM notification_templates
+                 WHERE trigger_type = 'custom' AND channel = 'in_app'
+             )",
+        )
+        .execute(&mut conn)
+        .unwrap();
+        diesel::sql_query(
+            "DELETE FROM notification_templates
+             WHERE trigger_type = 'custom' AND channel = 'in_app'",
+        )
+        .execute(&mut conn)
+        .unwrap();
         common::seed_user(&mut conn, "aoth_ops", venue_booking::users::model::UserRole::OperationsManager);
         common::seed_user(&mut conn, "aoth_admin", venue_booking::users::model::UserRole::Administrator);
         let mid = common::seed_user(&mut conn, "aoth_mem", venue_booking::users::model::UserRole::Member);

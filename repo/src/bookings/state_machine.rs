@@ -30,6 +30,7 @@ impl BookingStateMachine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_terminal(state: &BookingState) -> bool {
         matches!(
             state,

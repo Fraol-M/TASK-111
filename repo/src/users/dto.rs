@@ -23,6 +23,7 @@ pub struct UpdateUserRequest {
 #[derive(Debug, Deserialize)]
 pub struct ChangeStatusRequest {
     pub status: UserStatus,
+    #[allow(dead_code)]
     pub reason: Option<String>,
 }
 

@@ -30,15 +30,20 @@ pub fn require_self_or_role(
 pub const ADMIN: &[&str] = &["administrator"];
 pub const OPS: &[&str] = &["administrator", "operations_manager"];
 pub const FINANCE: &[&str] = &["administrator", "finance"];
+#[allow(dead_code)]
 pub const ASSET: &[&str] = &["administrator", "asset_manager"];
+#[allow(dead_code)]
 pub const EVALUATOR: &[&str] = &["administrator", "evaluator"];
 /// Reviewer authority: admin always fits, reviewer explicitly allowed. Kept
 /// separate from EVALUATOR because a reviewer is not authorized to perform
 /// the assessment itself, only to approve/reject completed evaluations.
+#[allow(dead_code)]
 pub const REVIEWER: &[&str] = &["administrator", "reviewer"];
 /// Combined evaluator + reviewer view of an evaluation (read access for
 /// endpoints that both roles must see, e.g. reading a completed evaluation).
+#[allow(dead_code)]
 pub const EVALUATOR_OR_REVIEWER: &[&str] = &["administrator", "evaluator", "reviewer"];
+#[allow(dead_code)]
 pub const PRIVILEGED: &[&str] = &[
     "administrator",
     "operations_manager",

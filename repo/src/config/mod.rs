@@ -184,13 +184,21 @@ fn default_demo_password() -> String {
 
 impl AppConfig {
     pub fn load() -> Result<Self, config::ConfigError> {
-        let cfg = config::Config::builder()
+        let mut builder = config::Config::builder()
             .add_source(
                 config::Environment::with_prefix("APP")
                     .separator("__")
                     .try_parsing(true),
-            )
-            .build()?;
+            );
+
+        // Preserve all-digit hex keys as strings. Without this explicit
+        // override, the config crate may coerce APP__ENCRYPTION__KEY_HEX into
+        // a number before deserialization, which breaks hex decoding in tests.
+        if let Ok(key_hex) = std::env::var("APP__ENCRYPTION__KEY_HEX") {
+            builder = builder.set_override("encryption.key_hex", key_hex)?;
+        }
+
+        let cfg = builder.build()?;
         cfg.try_deserialize()
     }
 }

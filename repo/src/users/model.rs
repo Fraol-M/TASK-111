@@ -92,6 +92,7 @@ pub struct NewUser {
     pub updated_at: DateTime<Utc>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Queryable, Selectable, Clone)]
 #[diesel(table_name = crate::schema::password_history)]
 pub struct PasswordHistory {

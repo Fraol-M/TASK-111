@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -39,6 +39,7 @@ pub struct NewAuditLog {
 }
 
 /// Idempotency key record for common::idempotency module.
+#[allow(dead_code)]
 #[derive(Debug, Queryable, Selectable, Clone)]
 #[diesel(table_name = crate::schema::idempotency_keys)]
 pub struct IdempotencyKey {

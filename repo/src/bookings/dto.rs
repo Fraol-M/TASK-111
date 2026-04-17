@@ -136,4 +136,5 @@ impl From<BookingStatusHistory> for BookingHistoryResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type BookingListResponse = Page<BookingResponse>;

@@ -111,5 +111,7 @@ impl From<NotificationTemplate> for TemplateResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type NotificationListResponse = Page<NotificationResponse>;
+#[allow(dead_code)]
 pub type TemplateListResponse = Page<TemplateResponse>;

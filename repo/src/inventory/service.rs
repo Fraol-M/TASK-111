@@ -247,6 +247,7 @@ pub fn release_hold_in_tx(
 /// 5. INSERT inventory_ledger (idempotent via correlation_id)
 /// 6. If new qty == 0: unpublish item
 /// 7. If new qty <= safety_stock: insert restock alert
+#[allow(dead_code)]
 pub async fn create_hold(
     pool: &DbPool,
     item_id: Uuid,
@@ -423,6 +424,7 @@ pub async fn update_item(
 
 /// Atomically update an inventory item's quantity with an audit ledger entry.
 /// Uses FOR UPDATE to prevent concurrent modification.
+#[allow(dead_code)]
 pub async fn update_item_qty(
     pool: &DbPool,
     item_id: Uuid,

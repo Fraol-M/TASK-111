@@ -20,7 +20,6 @@ mod common;
 /// `booking_integration.rs` using the same `common` harness) — not here.
 #[cfg(test)]
 mod booking_state_machine {
-    use super::*;
     use venue_booking::bookings::model::BookingState;
     use venue_booking::bookings::state_machine::BookingStateMachine;
 

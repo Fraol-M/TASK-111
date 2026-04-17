@@ -1,25 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# run_tests.sh — Docker-based test runner for Venue Booking & Ops System
-#
-# Env file injection (no manual copy/paste required):
-#   Priority: .env.test → .env → built-in defaults
-#
-# Usage:
-#   ./run_tests.sh                         # run all tests
-#   ./run_tests.sh test_login_success      # run a specific test
-#
-# Optional speed knobs:
-#   TEST_THREADS=4 ./run_tests.sh          # parallel test execution
-#   KEEP_VOLUMES=1 ./run_tests.sh          # keep DB/build caches (default)
-#   KEEP_VOLUMES=0 ./run_tests.sh          # cold reset (old behavior)
-# ---------------------------------------------------------------------------
-
 SPECIFIC_TEST="${1:-}"
 TEST_THREADS="${TEST_THREADS:-4}"
 KEEP_VOLUMES="${KEEP_VOLUMES:-1}"
+CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
 # Determine which env file to use
 if [ -f ".env.test" ]; then
@@ -29,7 +14,6 @@ elif [ -f ".env" ]; then
   ENV_FILE=".env"
   echo "[run_tests] .env.test not found; falling back to .env"
 else
-  # Write minimal test defaults to a temp file
   ENV_FILE="$(mktemp /tmp/venue_test_env.XXXXXX)"
   CLEANUP_ENV=1
   cat > "$ENV_FILE" <<'ENVEOF'
@@ -99,4 +83,4 @@ else
 fi
 
 echo "[run_tests] Running: $TEST_CMD"
-docker compose $COMPOSE_OPTS run --rm test_runner sh -c "$TEST_CMD"
+docker compose $COMPOSE_OPTS run --rm -e CARGO_BUILD_JOBS="$CARGO_BUILD_JOBS" test_runner sh -c "$TEST_CMD"

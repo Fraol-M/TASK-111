@@ -1,25 +1,7 @@
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, HttpServer};
 use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-mod app;
-mod assets;
-mod audit;
-mod auth;
-mod bookings;
-mod bootstrap;
-mod common;
-mod config;
-mod evaluations;
-mod groups;
-mod inventory;
-mod jobs;
-mod members;
-mod notifications;
-mod payments;
-mod reconciliation;
-mod schema;
-mod users;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,31 +17,32 @@ async fn main() -> std::io::Result<()> {
     info!("Starting Venue Booking & Operations Management System");
 
     // Load config from environment
-    let cfg = config::AppConfig::load().expect("Failed to load application configuration");
+    let cfg = venue_booking::config::AppConfig::load()
+        .expect("Failed to load application configuration");
 
     // Read encryption key directly from env to avoid config crate's
     // try_parsing(true) interpreting all-digit hex strings as integers.
     let key_hex = std::env::var("APP__ENCRYPTION__KEY_HEX")
         .unwrap_or_else(|_| cfg.encryption.key_hex.clone());
-    let enc_key = common::crypto::EncryptionKey::from_hex(&key_hex)
+    let enc_key = venue_booking::common::crypto::EncryptionKey::from_hex(&key_hex)
         .expect("Invalid ENCRYPTION_KEY_HEX — must be 64 hex characters");
 
     // Build DB pool
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = common::db::build_pool(&database_url);
+    let pool = venue_booking::common::db::build_pool(&database_url);
 
     // Run migrations on startup
-    bootstrap::run_migrations(&pool);
+    venue_booking::bootstrap::run_migrations(&pool);
 
     // Idempotently seed demo users when the operator opts in via
     // APP__BOOTSTRAP__SEED_DEMO_USERS=true (default false for production).
     // This turns `docker-compose up` into a zero-manual-step bring-up: the 7
     // role-mapped demo accounts from the README work immediately, with no
     // `docker compose exec db psql` required.
-    bootstrap::seed_demo_users_if_enabled(&pool, &cfg);
+    venue_booking::bootstrap::seed_demo_users_if_enabled(&pool, &cfg);
 
     // Start background jobs (non-async, spawns tokio tasks internally)
-    jobs::bootstrap::start_all_jobs(
+    venue_booking::jobs::bootstrap::start_all_jobs(
         pool.clone(),
         cfg.clone(),
         database_url.clone(),
@@ -74,7 +57,7 @@ async fn main() -> std::io::Result<()> {
     let pool_data = web::Data::new(pool.clone());
 
     HttpServer::new(move || {
-        app::build_app(
+        venue_booking::app::build_app(
             pool_data.clone(),
             cfg_data.clone(),
             enc_data.clone(),

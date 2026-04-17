@@ -78,7 +78,7 @@ pub async fn transition_evaluation(
     pool: &DbPool,
     eval_id: Uuid,
     to_state: EvaluationState,
-    actor_id: Uuid,
+    _actor_id: Uuid,
 ) -> Result<Evaluation, AppError> {
     let pool_c = pool.clone();
     actix_web::web::block(move || -> Result<Evaluation, AppError> {

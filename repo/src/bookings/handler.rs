@@ -7,7 +7,7 @@ use crate::bookings::service::BookingItemInput;
 use crate::common::{
     db::DbPool,
     errors::AppError,
-    extractors::{AdminUser, AuthUser, OperationsUser},
+    extractors::{AuthUser, OperationsUser},
     idempotency,
     pagination::{Page, PaginationParams},
     validation::validate_dto,

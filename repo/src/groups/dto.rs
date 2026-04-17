@@ -108,5 +108,7 @@ impl From<GroupMessageReceipt> for GroupMessageReceiptResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type GroupListResponse = Page<GroupThreadResponse>;
+#[allow(dead_code)]
 pub type MessageListResponse = Page<GroupMessageResponse>;

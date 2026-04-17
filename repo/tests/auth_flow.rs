@@ -1,6 +1,6 @@
 mod common;
 
-use actix_web::{test, web, App};
+use actix_web::{test, web};
 use serde_json::json;
 
 /// Integration test: full auth flow — login, use token, logout, verify 401.

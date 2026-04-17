@@ -19,6 +19,7 @@ pub struct AuditEvent {
 }
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait AuditSink: Send + Sync + 'static {
     async fn record(&self, event: AuditEvent) -> Result<(), AppError>;
 }

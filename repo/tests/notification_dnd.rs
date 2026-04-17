@@ -99,7 +99,6 @@ mod dnd_lifecycle_integration {
 
         let notif_id = Uuid::new_v4();
         let user_id = Uuid::new_v4();
-        let template_id = Uuid::new_v4();
         let now = Utc::now();
 
         {
@@ -119,19 +118,36 @@ mod dnd_lifecycle_integration {
                 .execute(&mut conn)
                 .expect("seed user");
 
-            // Seed a notification template
-            diesel::insert_into(notification_templates::table)
+            // Reuse the unique (trigger_type, channel) row on reruns so this
+            // test stays stable against a persistent test volume.
+            let template_id: Uuid = diesel::insert_into(notification_templates::table)
                 .values((
-                    notification_templates::id.eq(template_id),
+                    notification_templates::id.eq(Uuid::new_v4()),
                     notification_templates::name.eq("DND lifecycle test template"),
                     notification_templates::trigger_type.eq(TemplateTrigger::BookingConfirmed),
                     notification_templates::channel.eq(NotificationChannel::InApp),
+                    notification_templates::subject_template.eq(None::<String>),
                     notification_templates::body_template.eq("Your booking is confirmed."),
+                    notification_templates::variable_schema.eq(None::<serde_json::Value>),
                     notification_templates::is_critical.eq(false),
                     notification_templates::created_at.eq(now),
                     notification_templates::updated_at.eq(now),
                 ))
-                .execute(&mut conn)
+                .on_conflict((
+                    notification_templates::trigger_type,
+                    notification_templates::channel,
+                ))
+                .do_update()
+                .set((
+                    notification_templates::name.eq("DND lifecycle test template"),
+                    notification_templates::subject_template.eq(None::<String>),
+                    notification_templates::body_template.eq("Your booking is confirmed."),
+                    notification_templates::variable_schema.eq(None::<serde_json::Value>),
+                    notification_templates::is_critical.eq(false),
+                    notification_templates::updated_at.eq(now),
+                ))
+                .returning(notification_templates::id)
+                .get_result(&mut conn)
                 .expect("seed template");
 
             // Seed a notification in SuppressedDnd state

@@ -79,6 +79,7 @@ pub enum WalletTxnType {
     Adjustment,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Queryable, Selectable, Clone)]
 #[diesel(table_name = crate::schema::members)]
 pub struct Member {

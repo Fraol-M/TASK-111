@@ -18,6 +18,7 @@ pub fn create_session(conn: &mut DbConn, session: NewAuthSession) -> Result<Auth
         .map_err(AppError::from)
 }
 
+#[allow(dead_code)]
 pub fn find_session_by_id(conn: &mut DbConn, session_id: Uuid) -> Result<AuthSession, AppError> {
     auth_sessions::table
         .filter(auth_sessions::id.eq(session_id))

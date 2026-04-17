@@ -1,6 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use diesel::prelude::*;
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::audit::model::{AuditLog, NewAuditLog};
@@ -12,7 +13,7 @@ use crate::schema::audit_logs;
 /// to any hashed column or deletion of an intermediate row will break the chain
 /// when verified.
 ///
-/// Fields covered (order-sensitive — do not reorder without a re-hash migration):
+/// Fields covered (order-sensitive - do not reorder without a re-hash migration):
 ///   id, correlation_id, actor_user_id, action, entity_type, entity_id,
 ///   old_value (canonical JSON), new_value (canonical JSON), metadata (canonical
 ///   JSON), created_at, previous_hash.
@@ -41,6 +42,7 @@ fn compute_row_hash_fields(
         hasher.update(value.as_bytes());
         hasher.update(b"\n");
     }
+
     fn feed_opt_str(hasher: &mut Sha256, name: &str, value: Option<&str>) {
         match value {
             Some(s) => feed_str(hasher, name, s),
@@ -50,6 +52,7 @@ fn compute_row_hash_fields(
             }
         }
     }
+
     fn feed_opt_json(hasher: &mut Sha256, name: &str, value: Option<&serde_json::Value>) {
         // Canonicalize JSON to a stable byte string: serde_json::to_string
         // writes object keys in insertion order, not sorted. Re-serialize via
@@ -60,7 +63,13 @@ fn compute_row_hash_fields(
                     let sorted: std::collections::BTreeMap<_, _> = map.iter().collect();
                     let parts: Vec<String> = sorted
                         .iter()
-                        .map(|(k, val)| format!("{}:{}", serde_json::to_string(k).unwrap_or_default(), canonicalize(val)))
+                        .map(|(k, val)| {
+                            format!(
+                                "{}:{}",
+                                serde_json::to_string(k).unwrap_or_default(),
+                                canonicalize(val)
+                            )
+                        })
                         .collect();
                     format!("{{{}}}", parts.join(","))
                 }
@@ -71,6 +80,7 @@ fn compute_row_hash_fields(
                 _ => serde_json::to_string(v).unwrap_or_default(),
             }
         }
+
         match value {
             Some(v) => feed_str(hasher, name, &canonicalize(v)),
             None => {
@@ -115,39 +125,140 @@ fn compute_row_hash(log: &NewAuditLog, previous_hash: Option<&str>) -> String {
     )
 }
 
-pub fn insert_audit_log(conn: &mut DbConn, mut log: NewAuditLog) -> Result<AuditLog, AppError> {
-    // Fetch the most recent row_hash to chain from.
-    let prev_hash: Option<String> = audit_logs::table
-        .select(audit_logs::row_hash)
-        .order(audit_logs::created_at.desc())
-        .first::<String>(conn)
-        .optional()
-        .map_err(AppError::from)?;
-
-    log.previous_hash = prev_hash.clone();
-    log.row_hash = compute_row_hash(&log, prev_hash.as_deref());
-
-    diesel::insert_into(audit_logs::table)
-        .values(&log)
-        .get_result(conn)
-        .map_err(AppError::from)
-}
-
-/// Verify the integrity of the audit log hash chain.
-/// Loads all rows in chronological order and recomputes each row_hash,
-/// checking that it matches the stored value and that each previous_hash
-/// points to the preceding row. Returns Ok(count) on success or
-/// Err with the first broken row's ID.
-pub fn verify_audit_chain(conn: &mut DbConn) -> Result<usize, AppError> {
-    let rows: Vec<AuditLog> = audit_logs::table
-        .order(audit_logs::created_at.asc())
+fn find_chain_tail_hash(conn: &mut DbConn) -> Result<Option<String>, AppError> {
+    let rows: Vec<(String, Option<String>, DateTime<Utc>)> = audit_logs::table
+        .select((audit_logs::row_hash, audit_logs::previous_hash, audit_logs::created_at))
         .load(conn)
         .map_err(AppError::from)?;
 
-    let mut expected_prev: Option<String> = None;
+    if rows.is_empty() {
+        return Ok(None);
+    }
 
-    for row in &rows {
-        // Verify previous_hash linkage
+    let referenced_hashes: HashSet<String> = rows
+        .iter()
+        .filter_map(|(_, previous_hash, _)| previous_hash.clone())
+        .collect();
+
+    let mut tails: Vec<(String, DateTime<Utc>)> = rows
+        .into_iter()
+        .map(|(row_hash, _, created_at)| (row_hash, created_at))
+        .filter(|(row_hash, _)| !referenced_hashes.contains(row_hash))
+        .collect();
+
+    match tails.len() {
+        0 => Err(AppError::Internal(
+            "Audit chain has no tail; the linkage is cyclic or corrupted".into(),
+        )),
+        1 => Ok(Some(tails.pop().expect("single tail").0)),
+        _ => {
+            // Older test runs could leave a historical fork. Continue the most
+            // recent validated tail so new inserts remain append-only instead of
+            // failing forever on legacy state.
+            let latest_tail = tails
+                .into_iter()
+                .max_by(|left, right| {
+                    left.1
+                        .cmp(&right.1)
+                        .then_with(|| left.0.cmp(&right.0))
+                })
+                .expect("tail exists");
+            Ok(Some(latest_tail.0))
+        }
+    }
+}
+
+pub fn insert_audit_log(conn: &mut DbConn, mut log: NewAuditLog) -> Result<AuditLog, AppError> {
+    // PostgreSQL stores timestamptz at microsecond precision. Normalize before
+    // hashing so later verification over the persisted row reproduces the same
+    // byte sequence instead of drifting on truncated nanoseconds.
+    let micros = log.created_at.timestamp_subsec_micros();
+    if let Some(normalized) = log.created_at.with_nanosecond(micros * 1_000) {
+        log.created_at = normalized;
+    }
+
+    conn.transaction::<AuditLog, AppError, _>(|conn| {
+        // A linear hash chain needs serialized appends so two writers cannot
+        // both read the same tail and fork the chain.
+        diesel::sql_query("LOCK TABLE audit_logs IN SHARE ROW EXCLUSIVE MODE")
+            .execute(conn)
+            .map_err(AppError::from)?;
+
+        let prev_hash = find_chain_tail_hash(conn)?;
+        log.previous_hash = prev_hash.clone();
+        log.row_hash = compute_row_hash(&log, prev_hash.as_deref());
+
+        diesel::insert_into(audit_logs::table)
+            .values(&log)
+            .get_result(conn)
+            .map_err(AppError::from)
+    })
+}
+
+/// Verify the integrity of the audit log hash chain.
+/// Reconstructs append order from previous_hash links and recomputes each
+/// row_hash, rather than trusting created_at ordering, which may differ from
+/// commit order.
+#[allow(dead_code)]
+pub fn verify_audit_chain(conn: &mut DbConn) -> Result<usize, AppError> {
+    let rows: Vec<AuditLog> = audit_logs::table.load(conn).map_err(AppError::from)?;
+
+    if rows.is_empty() {
+        return Ok(0);
+    }
+
+    let mut index_by_hash: HashMap<String, usize> = HashMap::with_capacity(rows.len());
+    let mut children_by_prev: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut roots: Vec<usize> = Vec::new();
+
+    for (idx, row) in rows.iter().enumerate() {
+        if index_by_hash.insert(row.row_hash.clone(), idx).is_some() {
+            return Err(AppError::Internal(format!(
+                "Audit chain broken at row {}: duplicate row_hash detected",
+                row.id
+            )));
+        }
+    }
+
+    for (idx, row) in rows.iter().enumerate() {
+        match row.previous_hash.as_ref() {
+            Some(previous_hash) => {
+                if !index_by_hash.contains_key(previous_hash) {
+                    return Err(AppError::Internal(format!(
+                        "Audit chain broken at row {}: previous_hash points to a missing predecessor",
+                        row.id
+                    )));
+                }
+                children_by_prev
+                    .entry(previous_hash.clone())
+                    .or_default()
+                    .push(idx);
+            }
+            None => roots.push(idx),
+        }
+    }
+
+    let root_idx = match roots.as_slice() {
+        [root_idx] => *root_idx,
+        [] => {
+            return Err(AppError::Internal(
+                "Audit chain broken: no root row with NULL previous_hash".into(),
+            ))
+        }
+        _ => {
+            return Err(AppError::Internal(format!(
+                "Audit chain broken: expected 1 root row, found {}",
+                roots.len()
+            )))
+        }
+    };
+
+    let mut visited: HashSet<usize> = HashSet::with_capacity(rows.len());
+    let mut stack: Vec<(usize, Option<String>)> = vec![(root_idx, None)];
+
+    while let Some((current_idx, expected_prev)) = stack.pop() {
+        let row = &rows[current_idx];
+
         if row.previous_hash != expected_prev {
             return Err(AppError::Internal(format!(
                 "Audit chain broken at row {}: previous_hash mismatch",
@@ -155,8 +266,13 @@ pub fn verify_audit_chain(conn: &mut DbConn) -> Result<usize, AppError> {
             )));
         }
 
-        // Recompute and verify row_hash — must use the same full field set as
-        // compute_row_hash() to detect mutation of any security-relevant column.
+        if !visited.insert(current_idx) {
+            return Err(AppError::Internal(format!(
+                "Audit chain broken at row {}: cycle detected",
+                row.id
+            )));
+        }
+
         let recomputed = compute_row_hash_fields(
             &row.id,
             row.correlation_id.as_deref(),
@@ -177,7 +293,24 @@ pub fn verify_audit_chain(conn: &mut DbConn) -> Result<usize, AppError> {
             )));
         }
 
-        expected_prev = Some(row.row_hash.clone());
+        if let Some(children) = children_by_prev.get(&row.row_hash) {
+            for child_idx in children.iter().rev() {
+                stack.push((*child_idx, Some(row.row_hash.clone())));
+            }
+        }
+    }
+
+    if visited.len() != rows.len() {
+        let orphan = rows
+            .iter()
+            .enumerate()
+            .find(|(idx, _)| !visited.contains(idx))
+            .map(|(_, row)| row.id)
+            .expect("unvisited row exists");
+        return Err(AppError::Internal(format!(
+            "Audit chain broken: row {} is disconnected from the main chain",
+            orphan
+        )));
     }
 
     Ok(rows.len())

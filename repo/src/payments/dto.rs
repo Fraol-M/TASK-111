@@ -168,4 +168,5 @@ impl From<PaymentAdjustment> for AdjustmentResponse {
     }
 }
 
+#[allow(dead_code)]
 pub type PaymentListResponse = Page<PaymentResponse>;

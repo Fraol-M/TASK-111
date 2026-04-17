@@ -5,6 +5,8 @@
 //! because naming the Actix service type across tests is awkward; the macro
 //! form stays terse.
 
+#![allow(dead_code)]
+
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};

@@ -26,6 +26,7 @@ pub enum AppError {
     Internal(String),
 
     #[error("Idempotency replay")]
+    #[allow(dead_code)]
     IdempotencyReplay { status: u16, body: String },
 }
 
@@ -113,4 +114,3 @@ impl From<r2d2::Error> for AppError {
         AppError::Internal(format!("DB pool error: {}", e))
     }
 }
-

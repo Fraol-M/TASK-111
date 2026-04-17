@@ -12,7 +12,6 @@
 mod common;
 
 use actix_web::{test, web};
-use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -22,8 +21,22 @@ fn build_app_data() -> (
     venue_booking::config::AppConfig,
     venue_booking::common::crypto::EncryptionKey,
 ) {
-    let _ = dotenvy::from_filename_override(".env.test");
-    let pool = common::build_test_pool();
+    use diesel::r2d2::{self, ConnectionManager};
+    use diesel::PgConnection;
+
+    // Load defaults from .env.test without stomping per-test overrides set via
+    // std::env::set_var(...) inside this process.
+    let _ = dotenvy::from_filename(".env.test");
+
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .or_else(|_| std::env::var("DATABASE_URL"))
+        .expect("TEST_DATABASE_URL or DATABASE_URL must be set for integration tests");
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let pool = r2d2::Pool::builder()
+        .max_size(5)
+        .build(manager)
+        .expect("Failed to create test DB pool");
+
     common::run_test_migrations(&pool);
     let cfg = venue_booking::config::AppConfig::load().expect("config");
     let enc = venue_booking::common::crypto::EncryptionKey::from_hex(&cfg.encryption.key_hex)
@@ -36,25 +49,7 @@ fn seed_user(
     username: &str,
     role: venue_booking::users::model::UserRole,
 ) -> Uuid {
-    use venue_booking::schema::users;
-    let id = Uuid::new_v4();
-    diesel::delete(users::table.filter(users::username.eq(username)))
-        .execute(conn)
-        .ok();
-    let hash = venue_booking::auth::service::hash_password("Test1234!").unwrap();
-    diesel::insert_into(users::table)
-        .values((
-            users::id.eq(id),
-            users::username.eq(username),
-            users::password_hash.eq(&hash),
-            users::role.eq(role),
-            users::status.eq(venue_booking::users::model::UserStatus::Active),
-            users::created_at.eq(chrono::Utc::now()),
-            users::updated_at.eq(chrono::Utc::now()),
-        ))
-        .execute(conn)
-        .expect("seed user");
-    id
+    common::seed_user(conn, username, role)
 }
 
 /// Build a minimal valid multipart body carrying a single CSV field named

@@ -9,6 +9,8 @@ mod common;
 use actix_web::{test, web};
 use diesel::prelude::*;
 use serde_json::json;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use uuid::Uuid;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -32,33 +34,29 @@ fn seed_user(
     username: &str,
     role: venue_booking::users::model::UserRole,
 ) -> Uuid {
-    use venue_booking::schema::users;
-    let id = Uuid::new_v4();
-    diesel::delete(users::table.filter(users::username.eq(username)))
-        .execute(conn)
-        .ok();
-    let hash = venue_booking::auth::service::hash_password("Test1234!").unwrap();
-    diesel::insert_into(users::table)
-        .values((
-            users::id.eq(id),
-            users::username.eq(username),
-            users::password_hash.eq(&hash),
-            users::role.eq(role),
-            users::status.eq(venue_booking::users::model::UserStatus::Active),
-            users::created_at.eq(chrono::Utc::now()),
-            users::updated_at.eq(chrono::Utc::now()),
-        ))
-        .execute(conn)
-        .expect("seed user");
-    id
+    common::seed_user(conn, &resolve_test_username(username), role)
+}
+
+fn username_aliases() -> &'static Mutex<HashMap<String, String>> {
+    static USERNAME_ALIASES: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+    USERNAME_ALIASES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn resolve_test_username(alias: &str) -> String {
+    let mut aliases = username_aliases().lock().expect("username alias lock");
+    aliases
+        .entry(alias.to_string())
+        .or_insert_with(|| format!("{}-{}", alias, Uuid::new_v4().simple()))
+        .clone()
 }
 
 /// Log in and return the bearer token. Panics if login fails.
 macro_rules! login {
     ($app:expr, $username:expr) => {{
+        let username = resolve_test_username($username);
         let req = test::TestRequest::post()
             .uri("/api/v1/auth/login")
-            .set_json(json!({"username": $username, "password": "Test1234!"}))
+            .set_json(json!({"username": username, "password": "Test1234!"}))
             .to_request();
         let resp = test::call_service($app, req).await;
         let body: serde_json::Value = test::read_body_json(resp).await;
@@ -105,7 +103,7 @@ async fn test_suspension_revokes_existing_session() {
     let suspend_req = test::TestRequest::patch()
         .uri(&format!("/api/v1/users/{}/status", target_id))
         .insert_header(("Authorization", format!("Bearer {}", admin_token)))
-        .set_json(json!({"status": "Suspended"}))
+        .set_json(json!({"status": "suspended"}))
         .to_request();
     let suspend_resp = test::call_service(&app, suspend_req).await;
     assert_eq!(suspend_resp.status(), 200, "suspension should succeed");
@@ -138,7 +136,7 @@ async fn test_refund_approval_creates_adjust_ledger_entry() {
     ))
     .await;
 
-    let (admin_id, member_id, refund_id) = {
+    let (_admin_id, member_id, refund_id) = {
         let mut conn = pool.get().unwrap();
 
         let aid = seed_user(&mut conn, "hr_admin_refund", venue_booking::users::model::UserRole::Administrator);
@@ -235,7 +233,6 @@ async fn test_refund_approval_creates_adjust_ledger_entry() {
 
     // Verify points_ledger has a negative 'adjust' entry (not 'refund')
     {
-        use venue_booking::schema::points_ledger;
         let mut conn = pool.get().unwrap();
         let entries: Vec<(String, i32)> = diesel::sql_query(
             "SELECT txn_type::text, delta FROM points_ledger \
@@ -385,8 +382,24 @@ async fn test_inventory_hold_correlation_id_is_idempotent() {
 
     // Seed inventory item with qty = 10
     {
-        use venue_booking::schema::inventory_items;
+        use venue_booking::schema::{bookings, inventory_items};
         let mut conn = pool.get().unwrap();
+        let now = chrono::Utc::now();
+        let member_id = seed_user(&mut conn, "hr_hold_member", venue_booking::users::model::UserRole::Member);
+        diesel::insert_into(bookings::table)
+            .values((
+                bookings::id.eq(booking_id),
+                bookings::member_id.eq(member_id),
+                bookings::state.eq(venue_booking::bookings::model::BookingState::Held),
+                bookings::start_at.eq(now + chrono::Duration::days(1)),
+                bookings::end_at.eq(now + chrono::Duration::days(2)),
+                bookings::total_cents.eq(0_i64),
+                bookings::version.eq(0),
+                bookings::created_at.eq(now),
+                bookings::updated_at.eq(now),
+            ))
+            .execute(&mut conn)
+            .expect("seed booking");
         diesel::insert_into(inventory_items::table)
             .values((
                 inventory_items::id.eq(item_id),
@@ -932,6 +945,17 @@ async fn test_audit_hash_chain_integrity() {
 
     let now = chrono::Utc::now();
     let mut conn = pool.get().unwrap();
+    // Remove only this test's prior rows so reruns stay deterministic without
+    // deleting fixtures owned by sibling tests running in parallel.
+    diesel::delete(
+        venue_booking::schema::audit_logs::table
+            .filter(venue_booking::schema::audit_logs::action.eq_any(vec![
+                "chain_test_1",
+                "chain_test_2",
+            ])),
+    )
+    .execute(&mut conn)
+    .ok();
 
     // Insert two audit log entries via the production path
     venue_booking::audit::repository::insert_audit_log(
@@ -998,7 +1022,7 @@ async fn test_booking_ownership_returns_403_for_non_owner() {
     ))
     .await;
 
-    let (owner_id, other_id, booking_id) = {
+    let (owner_id, _other_id, booking_id) = {
         let mut conn = pool.get().unwrap();
         let owner = seed_user(&mut conn, "hr_booking_owner", venue_booking::users::model::UserRole::Member);
         let other = seed_user(&mut conn, "hr_booking_other", venue_booking::users::model::UserRole::Member);

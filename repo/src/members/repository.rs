@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::common::{db::DbConn, errors::AppError};
 use crate::members::model::{
     Member, MemberPreferences, MemberTier, NewMember, NewPointsLedger, NewWalletLedger,
-    PointsLedger, PointsTxnType, WalletLedger, WalletTxnType,
+    PointsLedger, WalletLedger,
 };
 use crate::schema::{member_preferences, members, points_ledger, wallet_ledger};
 
@@ -16,6 +16,7 @@ pub fn find_member(conn: &mut DbConn, user_id: Uuid) -> Result<Member, AppError>
         .map_err(|_| AppError::NotFound(format!("Member {} not found", user_id)))
 }
 
+#[allow(dead_code)]
 pub fn create_member(conn: &mut DbConn, new_member: NewMember) -> Result<Member, AppError> {
     diesel::insert_into(members::table)
         .values(&new_member)
@@ -92,6 +93,7 @@ pub fn update_tier(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn update_rolling_spend(
     conn: &mut DbConn,
     user_id: Uuid,
@@ -240,6 +242,7 @@ pub fn upsert_preferences(
 }
 
 /// Get all members for tier recalculation job.
+#[allow(dead_code)]
 pub fn list_all_member_ids(conn: &mut DbConn) -> Result<Vec<Uuid>, AppError> {
     members::table
         .select(members::user_id)
